@@ -8,4 +8,4 @@
 
 cd /hps/nobackup/agb/rnacentral/agreen/ARISE/jats-parser/
 
-poetry run python xml_2_parquet /nfs/ftp/public/databases/pmc/oa/ /hps/nobackup/agb/rnacentral/agreen/ARISE/jats-parser/oa_parquet --file_index $SLURM_ARRAY_TASK_ID
+poetry run python xml_2_parquet.py /nfs/ftp/public/databases/pmc/oa/ /hps/nobackup/agb/rnacentral/agreen/ARISE/jats-parser/oa_parquet --file_index $SLURM_ARRAY_TASK_ID
