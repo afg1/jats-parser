@@ -2,7 +2,7 @@
 #SBATCH --job-name=convert_xml_2_parquet
 #SBATCH --array=0-981
 #SBATCH -p datamover
-#SBATCH --mem 4G
+#SBATCH --mem 16G
 #SBATCH --time=8:00:00
 
 
