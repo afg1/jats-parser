@@ -12,8 +12,16 @@ from optparse import OptionParser
 from datetime import datetime
 from lxml import etree
 from unidecode import unidecode
+import gzip
 
-
+def get_zipped_file_content(name):
+	"""
+	Open a gzipped xml and read it
+	"""
+	f = gzip.open(name,'r')
+	f_text = f.read()
+	f.close()
+	return f_text
 
 def get_file_content(name):
 	f = open(name,'r')
@@ -63,16 +71,16 @@ def get_el_cardinality(someroot, somepath):
 def get_stats(fname, someroot):
 	line = 'pam-stats' + '\t'
 	line += fname + '\t'
-	line += get_el_cardinality(someroot,'/article/front/article-meta/abstract') + '\t'
-	line += get_el_cardinality(someroot,'/article/body/p') + '\t'
-	line += get_el_cardinality(someroot,'/article/body/sec')
+	line += get_el_cardinality(someroot,'./front/article-meta/abstract') + '\t'
+	line += get_el_cardinality(someroot,'./body/p') + '\t'
+	line += get_el_cardinality(someroot,'./body/sec')
 	return line
 
 # helper function, used for stats printing
 # lists the tags of elements containing a <fig> for a given file
 def get_fig_parents(fname, someroot):
 	parents={}
-	figs = someroot.xpath('/article/body//fig')
+	figs = someroot.xpath('./body//fig')
 	if figs is not None:
 		for fig in figs:
 			parent_tag=fig.getparent().tag
@@ -88,7 +96,7 @@ def get_fig_parents(fname, someroot):
 # lists the tags of elements containing a <table-wrap> for a given file
 def get_tw_parents(fname, someroot):
 	parents={}
-	tws = someroot.xpath('/article/body//table-wrap')
+	tws = someroot.xpath('./body//table-wrap')
 	if tws is not None:
 		for tw in tws:
 			parent_tag=tw.getparent().tag
@@ -106,9 +114,9 @@ def get_tw_parents(fname, someroot):
 def get_body_structure(fname, someroot):
 	line = 'pam-struc' + '\t'
 	line += fname + '\t'
-	atype = someroot.xpath('/article')[0].get('article-type')
+	atype = someroot.xpath('.')[0].get('article-type')
 	line += atype + '\t'
-	myroots = someroot.xpath('/article/body')
+	myroots = someroot.xpath('./body')
 	if len(myroots)>0:
 		myroot=myroots[0]
 		for el in myroot.iterchildren():
@@ -117,7 +125,7 @@ def get_body_structure(fname, someroot):
 	return line
 
 def get_keywords(someroot):
-	kwd_list = someroot.xpath('/article//kwd')
+	kwd_list = someroot.xpath('.//kwd')
 	if kwd_list is None: return []
 	result = []
 	for k in kwd_list:
@@ -190,7 +198,7 @@ def get_pub_date_by_type(someroot,selector,pubtype,format):
 
 # easiest way to retrieve publication date: take first in the list
 def get_first_pub_date(someroot,format):
-	selector = '/article/front/article-meta/pub-date'
+	selector = './front/article-meta/pub-date'
 	return get_pub_date_by_type(someroot, selector, None, format)
 
 # alternative way to retrieve publication date: use precedence by pub-type
@@ -199,7 +207,7 @@ def get_first_pub_date(someroot,format):
 # we then try ppub and add month = 1 and day = 1 it they are tmissing
 # algo decided in accordance with Julien
 def get_pub_date(someroot,format):
-	selector = '/article/front/article-meta/pub-date'
+	selector = './front/article-meta/pub-date'
 	dt = get_pub_date_by_type(someroot, selector, 'epub', format)
 	if dt['status'] != 'ok': dt = get_pub_date_by_type(someroot, selector, 'ppub', format)
 	if dt['status'] != 'ok': dt = get_pub_date_by_type(someroot, selector, 'collection', format)
@@ -208,7 +216,7 @@ def get_pub_date(someroot,format):
 	return dt
 
 def get_pmc_release_date(someroot,format):
-	selector = '/article/front/article-meta/pub-date'
+	selector = './front/article-meta/pub-date'
 	dt = get_pub_date_by_type(someroot, selector, 'pmc-release', format)
 	if dt['status'] != 'ok':
 		return {'date': None, 'status': "ok"}
@@ -223,7 +231,7 @@ def build_medlinePgn(fp,lp):
 
 def get_affiliations(someroot):
 	result=[]
-	affs = someroot.xpath('/article/front/article-meta//aff')
+	affs = someroot.xpath('./front/article-meta//aff')
 	for aff in affs:
 		id=aff.get('id')
 		# extract label text and then remove node
@@ -246,7 +254,7 @@ def get_affiliations(someroot):
 	return result
 
 def get_authors(someroot):
-	authors = someroot.xpath('/article/front/article-meta/contrib-group/contrib[@contrib-type="author"]');
+	authors = someroot.xpath('./front/article-meta/contrib-group/contrib[@contrib-type="author"]');
 	result = []
 	for a in authors:
 		surname = ''
@@ -292,7 +300,7 @@ def clean_string(s1):
 
 
 def get_abstract(someroot):
-	x = someroot.xpath('/article/front/article-meta/abstract')
+	x = someroot.xpath('./front/article-meta/abstract')
 	content=''
 	for xi in x:
 		content += ' '.join(xi.itertext()) + ' '
@@ -710,7 +718,7 @@ def getPmcFtpUrl(xmlstr):
 
 def parse_PMC_XML_core(xmlstr, root, input_file):
 
-	xmlstr = cleanup_input_xml(xmlstr)
+	# xmlstr = cleanup_input_xml(xmlstr)
 
 	if root is None:
 		root = etree.fromstring(xmlstr)
@@ -739,7 +747,7 @@ def parse_PMC_XML_core(xmlstr, root, input_file):
 	etree.strip_tags(root,'ext-link')
 
 	# rename this erroneous element
-	for el in root.xpath('/article/floats-wrap'): el.tag='floats-group'
+	for el in root.xpath('./floats-wrap'): el.tag='floats-group'
 
 	etree.strip_elements(root, 'inline-formula','disp-formula', with_tail=False)
 	#remove_subtree_of_elements(root,['inline-formula','disp-formula'])
@@ -759,35 +767,35 @@ def parse_PMC_XML_core(xmlstr, root, input_file):
 	# note: we use xref to retrieve author affiliations above this line
 	etree.strip_tags(root,'xref')
 
-	dict_doc['article_type'] = root.xpath('/article')[0].get('article-type')
+	dict_doc['article_type'] = root.xpath('.')[0].get('article-type', "")
 
 	# namespace xml = {http://www.w3.org/XML/1998/namespace}
-	lng = root.xpath('/article')[0].get('{http://www.w3.org/XML/1998/namespace}lang')
+	lng = root.xpath('.')[0].get('{http://www.w3.org/XML/1998/namespace}lang')
 	if lng == None : lng = ''
 	dict_doc['language'] = lng[0:2]
 
 	# note: we can get multiple journal-id elements with different journal-id-type attributes
-	dict_doc['medline_ta'] = get_text_from_xpath(root, '/article/front/journal-meta/journal-id', False, True)
+	dict_doc['medline_ta'] = get_text_from_xpath(root, './front/journal-meta/journal-id', False, True)
 
-	dict_doc['journal'] = get_multiple_texts_from_xpath(root, '/article/front/journal-meta//journal-title', True)
+	dict_doc['journal'] = get_multiple_texts_from_xpath(root, './front/journal-meta//journal-title', True)
 
 
 	# note: I did not see any multiple <article-title> elements but we retrieve each element of the hypothetical list just in case
-	#dict_doc['title'] = get_multiple_texts_from_xpath(root, '/article/front/article-meta/title-group/article-title', True)
-	dict_doc['title'] = get_multiple_texts_from_xpath(root, '/article/front/article-meta/title-group', True)
-	dict_doc['pmid'] = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="pmid"]', True, False)
-	dict_doc['doi'] = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="doi"]', True, False)
+	#dict_doc['title'] = get_multiple_texts_from_xpath(root, './front/article-meta/title-group/article-title', True)
+	dict_doc['title'] = get_multiple_texts_from_xpath(root, './front/article-meta/title-group', True)
+	dict_doc['pmid'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmid"]', True, False)
+	dict_doc['doi'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="doi"]', True, False)
 	# the archive and manuscript types are used for preprints
-	dict_doc['archive_id'] = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="archive"]', True, False)
-	dict_doc['manuscript_id'] = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="manuscript"]', True, False)
+	dict_doc['archive_id'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="archive"]', True, False)
+	dict_doc['manuscript_id'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="manuscript"]', True, False)
 
 	# we might find at least one of these:
-	pmc1 = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="pmc-uid"]', True, False)
-	pmc2 = get_text_from_xpath(root, '/article/front/article-meta/article-id[@pub-id-type="pmc"]', True, False)
+	pmc1 = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmc-uid"]', True, False)
+	pmc2 = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmc"]', True, False)
 	pmc = pmc1
 	if pmc == '': pmc = pmc2
 	if pmc == '' and dict_doc['archive_id'] == '':  file_status_add_error("ERROR, no value for article id in types pmc-uid, pmc, or archive")
-	dict_doc['pmcid'] = pmc
+	dict_doc['pmcid'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmcid"]', True, False)
 	dict_doc['_id'] = pmc
 	# if we have no pmc id then use the archive id (for preprints)
 	if pmc == '' and dict_doc['archive_id'] != '': dict_doc['_id'] = dict_doc['archive_id']
@@ -799,10 +807,10 @@ def parse_PMC_XML_core(xmlstr, root, input_file):
 	dict_doc['pubyear'] = get_pub_date(root, 'yyyy')['date']
 	#dict_doc['publication_date_status']=get_pub_date(root, 'yyyy')['status']
 
-	dict_doc['issue'] = get_text_from_xpath(root, '/article/front/article-meta/issue', True, False)
-	dict_doc['volume'] = get_text_from_xpath(root, '/article/front/article-meta/volume', True, False)
-	fp = get_text_from_xpath(root, '/article/front/article-meta/fpage', False, False)
-	lp = get_text_from_xpath(root, '/article/front/article-meta/lpage', False, False)
+	dict_doc['issue'] = get_text_from_xpath(root, './front/article-meta/issue', True, False)
+	dict_doc['volume'] = get_text_from_xpath(root, './front/article-meta/volume', True, False)
+	fp = get_text_from_xpath(root, './front/article-meta/fpage', False, False)
+	lp = get_text_from_xpath(root, './front/article-meta/lpage', False, False)
 	dict_doc['start_page'] = fp
 	dict_doc['end_page'] = lp
 	dict_doc['medline_pgn'] = build_medlinePgn(fp,lp)
@@ -833,15 +841,15 @@ def parse_PMC_XML_core(xmlstr, root, input_file):
 	dict_doc['back_sections']=get_sections(dict_doc['pmcid'], root.find('back'))
 
 	# for stats and debugging, can be commented
-	dict_doc['figures_in_body']=len(root.xpath('/article/body//fig'))
-	dict_doc['figures_in_back']=len(root.xpath('/article/back//fig'))
-	dict_doc['figures_in_float']=len(root.xpath('/article/floats-group//fig'))
-	dict_doc['tables_in_body']=len(root.xpath('/article/body//table'))
-	dict_doc['tables_in_back']=len(root.xpath('/article/back//table'))
-	dict_doc['tables_in_float']=len(root.xpath('/article/floats-group//table'))
-	dict_doc['paragraphs_in_body']=len(root.xpath('/article/body//p'))
-	dict_doc['paragraphs_in_back']=len(root.xpath('/article/back//p'))
-	dict_doc['paragraphs_in_float']=len(root.xpath('/article/floats-group//p'))
+	dict_doc['figures_in_body']=len(root.xpath('./body//fig'))
+	dict_doc['figures_in_back']=len(root.xpath('./back//fig'))
+	dict_doc['figures_in_float']=len(root.xpath('./floats-group//fig'))
+	dict_doc['tables_in_body']=len(root.xpath('./body//table'))
+	dict_doc['tables_in_back']=len(root.xpath('./back//table'))
+	dict_doc['tables_in_float']=len(root.xpath('./floats-group//table'))
+	dict_doc['paragraphs_in_body']=len(root.xpath('./body//p'))
+	dict_doc['paragraphs_in_back']=len(root.xpath('./back//p'))
+	dict_doc['paragraphs_in_float']=len(root.xpath('./floats-group//p'))
 
 	# for compatibility reasons
 	dict_doc['pmcid']='PMC' + dict_doc['pmcid']
@@ -866,7 +874,7 @@ def get_sections(pmcid, node):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def simplify_node(el, kept_tags, starting=True):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-	print("Choosing old / new", use_old)
+	# print("Choosing old / new", use_old)
 	if use_old:
 		simplify_node_old(el, kept_tags)
 	else:
@@ -878,7 +886,7 @@ def simplify_node(el, kept_tags, starting=True):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def simplify_node_old(el, kept_tags, starting=True):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-	print("Using old")
+	# print("Using old")
 	if starting:
 		for subel in el.iterchildren():
 			simplify_node_old(subel, kept_tags, False)
@@ -895,7 +903,7 @@ def simplify_node_old(el, kept_tags, starting=True):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def simplify_node_new(node ,kept_tags):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-	print("Using new")
+	# print("Using new")
 	elems = list()
 	recursive_simplify_node(node, kept_tags, elems)
 	node_tail = node.tail
