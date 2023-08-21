@@ -6,6 +6,7 @@ import click
 import polars as pl
 from lxml import etree
 from tqdm.auto import tqdm
+from pathlib import Path
 
 from process_xml import get_zipped_file_content, cleanup_input_xml, parse_PMC_XML_core, get_stats, get_body_structure
 
@@ -20,13 +21,17 @@ def split_into_articles(xml_content):
 
 
 @click.command()
-@click.argument("input", type=click.Path(exists=True))
+@click.argument("input_path", type=click.Path(exists=True))
 @click.argument("output", type=click.Path())
-def main(input, output):
+@click.option("--file_index", type=int, default=0)
+def main(input_path, output, file_index):
     """
     Process EPMC open access dumps to parquet
     """
-    xml_content = get_zipped_file_content(input)
+    all_dumps = sorted(Path(input_path).glob("*.xml.gz"))
+    print(all_dumps)
+    input_xml = all_dumps[file_index]
+    xml_content = get_zipped_file_content(input_xml)
     articles = split_into_articles(xml_content)
 
     dump_dict = {"pmcid": [], "pmid": [], "authors": [], "title": [], "publication_date":[], "keywords":[], "abstract":[], "main_text":[]}
@@ -61,8 +66,8 @@ def main(input, output):
         dump_dict['main_text'].append(main_text)
         
     dataframe = pl.DataFrame(dump_dict)
-    print(dataframe)
-    dataframe.to_parquet(output)
+    output_fname = input_xml.name.removesuffix("".join(input_xml.suffixes)) + ".parquet"
+    dataframe.write_parquet(Path(output) / output_fname)
 
 
 
