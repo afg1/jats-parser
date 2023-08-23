@@ -29,7 +29,12 @@ def main(input_path, output, file_index):
     Process EPMC open access dumps to parquet
     """
     all_dumps = sorted(Path(input_path).glob("*.xml.gz"))
-    print(all_dumps)
+    
+    output_path = Path(output) / output_fname
+    if output_path.exists():
+        print(f"Output file {output_path} already exists. Skipping.")
+        return
+
     input_xml = all_dumps[file_index]
     xml_content = get_zipped_file_content(input_xml)
     articles = split_into_articles(xml_content)
