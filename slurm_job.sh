@@ -3,7 +3,7 @@
 #SBATCH --array=0-981
 #SBATCH -p datamover
 #SBATCH --mem 16G
-#SBATCH --time=8:00:00
+#SBATCH --time=12:00:00
 
 
 cd /hps/nobackup/agb/rnacentral/agreen/ARISE/jats-parser/
