@@ -16,3 +16,5 @@ def main(input_path, output):
     complete_pq.sink_parquet(output)    
 
 
+if __name__ == "__main__":
+    main()
