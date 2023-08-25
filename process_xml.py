@@ -861,6 +861,79 @@ def parse_PMC_XML_core(xmlstr, root, input_file):
 
 	return dict_doc
 
+def parse_PMC_XML_fast(xmlstr, root, input_file):
+
+	# xmlstr = cleanup_input_xml(xmlstr)
+
+	if root is None:
+		root = etree.fromstring(xmlstr)
+
+	if input_file is None:
+		input_file = '(unknown file name)'
+
+	# (re)init global variable block_id used for building section / block ids
+	block_id.clear()
+	# (re)init output variable
+	dict_doc = {}
+	remove_alternative_title_if_redundant(root)
+	# End preprocessing
+
+	# Now retrieve data from refactored XML
+	# dict_doc['affiliations'] = get_affiliations(root)
+	dict_doc['authors'] = get_authors(root)
+
+	# note: we use xref to retrieve author affiliations above this line
+	etree.strip_tags(root,'xref')
+
+
+	dict_doc['title'] = get_multiple_texts_from_xpath(root, './front/article-meta/title-group', True)
+	dict_doc['pmid'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmid"]', True, False)
+	# we might find at least one of these:
+	pmc = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmc-uid"]', True, False)
+	if pmc == '': 
+		pmc = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmc"]', True, False)
+	# if pmc == '' and dict_doc['archive_id'] == '':  file_status_add_error("ERROR, no value for article id in types pmc-uid, pmc, or archive")
+	dict_doc['pmcid'] = get_text_from_xpath(root, './front/article-meta/article-id[@pub-id-type="pmcid"]', True, False)
+	dict_doc['_id'] = pmc
+	# if we have no pmc id then use the archive id (for preprints)
+	# if pmc == '' and dict_doc['archive_id'] != '': dict_doc['_id'] = dict_doc['archive_id']
+
+	# ok with Julien, see precedence rules in def get_pub_date()
+	dict_doc['publication_date'] = get_pub_date(root, 'd-M-yyyy')['date']
+	dict_doc['abstract'] = get_clean_text(root.find('front/article-meta/abstract'))
+	dict_doc['keywords'] = get_keywords(root)
+
+	# filling body, back and floats sections
+	dict_doc['body_sections'] = []
+	block_id.append(1)
+
+	if dict_doc['title'] != '':
+		dict_doc['body_sections'].append({
+			'implicit':True, 'level':1, 'id':'1', 'label':'', 'title':'Title',
+			'contents': [{'tag':'p', 'id':'1.1', 'text': dict_doc['title']}]})
+		block_id[-1] = block_id[-1] + 1
+
+	if dict_doc['abstract'] != '':
+		abs_node = root.find('./front/article-meta/abstract')
+		abs_title = etree.SubElement(abs_node, "title")
+		abs_title.text = 'Abstract'
+		sectionList = handle_section_flat(dict_doc['_id'], abs_node, 1, False, block_id)
+		dict_doc['body_sections'].extend(sectionList)
+		block_id[-1] = block_id[-1] + 1
+
+	dict_doc['body_sections'].extend(get_sections(dict_doc['pmcid'], root.find('body')))
+
+	# for compatibility reasons
+	dict_doc['pmcid']='PMC' + dict_doc['pmcid']
+	dict_doc['_id'] = dict_doc['pmcid']
+	# in case of a preprint we only have an archive id, we store it as the _id
+	# if we have no pmcid, store an empty string for it
+	if dict_doc['pmcid'] == 'PMC': dict_doc['pmcid'] = ''
+
+	return dict_doc
+
+
+
 def get_sections(pmcid, node):
 	if node is None: return []
 	sections = handle_section_flat(pmcid, node, 1, True, block_id)
